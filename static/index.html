@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optisec SOC Dashboard</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface2: #161616;
+      --border: #1a3a1a;
+      --green: #00ff41;
+      --green-dim: #00c832;
+      --green-dark: #003d10;
+      --red: #ff3333;
+      --yellow: #ffcc00;
+      --text: #d0ffd0;
+      --text-dim: #7aad7a;
+      --text-muted: #3a6b3a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      border: 2px solid var(--green);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: var(--green);
+      text-shadow: 0 0 10px var(--green);
+      box-shadow: 0 0 12px #00ff4133;
+    }
+
+    .logo-text h1 {
+      font-size: 1.3rem;
+      color: var(--green);
+      text-shadow: 0 0 8px var(--green);
+      letter-spacing: 2px;
+    }
+
+    .logo-text p {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--green-dim);
+      letter-spacing: 1px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .lang-btn {
+      background: var(--green-dark);
+      border: 1px solid var(--green-dim);
+      color: var(--green);
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .lang-btn:hover {
+      background: #004d18;
+      box-shadow: 0 0 8px #00ff4155;
+    }
+
+    /* ── Stats cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 24px 28px 0;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+      background: var(--accent, var(--green));
+    }
+
+    .stat-card.threat { --accent: var(--red); }
+    .stat-card.network { --accent: #00aaff; }
+
+    .stat-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .stat-label[data-ar] { display: none; }
+
+    .stat-value {
+      font-size: 2.4rem;
+      font-weight: bold;
+      color: var(--accent, var(--green));
+      text-shadow: 0 0 12px var(--accent, var(--green));
+      line-height: 1;
+    }
+
+    .stat-sub {
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* ── Events table ── */
+    .section {
+      padding: 24px 28px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      color: var(--green-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .refresh-info {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+    }
+
+    .table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 480px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+
+    thead th {
+      background: var(--surface2);
+      color: var(--green-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #0e200e;
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover { background: #0d1a0d; }
+
+    tbody td {
+      padding: 9px 14px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .badge-ok   { background: #003d10; color: var(--green); border: 1px solid #005a18; }
+    .badge-warn { background: #3d2a00; color: var(--yellow); border: 1px solid #5a3d00; }
+    .badge-crit { background: #3d0000; color: var(--red);    border: 1px solid #5a0000; }
+
+    .empty-row td {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      margin-top: 8px;
+    }
+
+    /* ── Arabic RTL overrides ── */
+    body.ar { direction: rtl; }
+    body.ar header { flex-direction: row-reverse; }
+    body.ar .stat-card::before { left: auto; right: 0; }
+    body.ar table { direction: rtl; }
+    body.ar thead th, body.ar tbody td { text-align: right; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div class="logo-icon">&#x1F6E1;</div>
+    <div class="logo-text">
+      <h1>OPTISEC</h1>
+      <p data-en="SECURITY OPERATIONS CENTER" data-ar="مركز عمليات الأمن">SECURITY OPERATIONS CENTER</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      <span data-en="LIVE MONITORING" data-ar="مراقبة مباشرة">LIVE MONITORING</span>
+    </div>
+    <button class="lang-btn" id="langToggle" onclick="toggleLang()">العربية</button>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label" data-en="TOTAL EVENTS" data-ar="إجمالي الأحداث">TOTAL EVENTS</div>
+    <div class="stat-value" id="totalEvents">—</div>
+    <div class="stat-sub" data-en="Recorded log entries" data-ar="سجلات مسجلة">Recorded log entries</div>
+  </div>
+  <div class="stat-card threat">
+    <div class="stat-label" data-en="THREATS DETECTED" data-ar="التهديدات المكتشفة">THREATS DETECTED</div>
+    <div class="stat-value" id="threatsDetected">—</div>
+    <div class="stat-sub" data-en="Suspicious activities" data-ar="الأنشطة المشبوهة">Suspicious activities</div>
+  </div>
+  <div class="stat-card network">
+    <div class="stat-label" data-en="NETWORKS MONITORED" data-ar="الشبكات المراقبة">NETWORKS MONITORED</div>
+    <div class="stat-value" id="networksMonitored">—</div>
+    <div class="stat-sub" data-en="Active network segments" data-ar="شرائح الشبكة النشطة">Active network segments</div>
+  </div>
+</div>
+
+<!-- Events Table -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title" data-en="RECENT EVENTS" data-ar="الأحداث الأخيرة">RECENT EVENTS</span>
+    <span class="refresh-info" data-en="Auto-refresh every 10s" data-ar="تحديث تلقائي كل 10 ثوانٍ">Auto-refresh every 10s</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-en="TIMESTAMP" data-ar="الوقت">TIMESTAMP</th>
+          <th data-en="INTERFACE" data-ar="الواجهة">INTERFACE</th>
+          <th data-en="NETWORK" data-ar="الشبكة">NETWORK</th>
+          <th data-en="DEVICES" data-ar="الأجهزة">DEVICES</th>
+          <th data-en="STATUS" data-ar="الحالة">STATUS</th>
+        </tr>
+      </thead>
+      <tbody id="eventsBody">
+        <tr class="empty-row"><td colspan="5">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  &copy; 2026 Optisec &mdash; <span data-en="All rights reserved" data-ar="جميع الحقوق محفوظة">All rights reserved</span>
+  &nbsp;|&nbsp; <span id="lastUpdated"></span>
+</footer>
+
+<script>
+  let isArabic = false;
+
+  function toggleLang() {
+    isArabic = !isArabic;
+    const body = document.body;
+    const btn  = document.getElementById('langToggle');
+
+    if (isArabic) {
+      body.classList.add('ar');
+      btn.textContent = 'English';
+      document.documentElement.lang = 'ar';
+      document.documentElement.dir  = 'rtl';
+    } else {
+      body.classList.remove('ar');
+      btn.textContent = 'العربية';
+      document.documentElement.lang = 'en';
+      document.documentElement.dir  = 'ltr';
+    }
+
+    document.querySelectorAll('[data-en]').forEach(el => {
+      el.textContent = isArabic ? el.dataset.ar : el.dataset.en;
+    });
+  }
+
+  function fmtTime(iso) {
+    try {
+      return new Date(iso).toLocaleString('en-GB', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      });
+    } catch { return iso; }
+  }
+
+  function statusBadge(suspicious) {
+    if (suspicious && suspicious.length > 0) {
+      return `<span class="badge badge-crit">${isArabic ? 'تهديد' : 'THREAT'}</span>`;
+    }
+    return `<span class="badge badge-ok">${isArabic ? 'آمن' : 'CLEAN'}</span>`;
+  }
+
+  async function fetchStats() {
+    try {
+      const r = await fetch('/api/stats');
+      const d = await r.json();
+      document.getElementById('totalEvents').textContent     = d.total_events ?? '—';
+      document.getElementById('threatsDetected').textContent = d.threats_detected ?? '—';
+      document.getElementById('networksMonitored').textContent = d.networks_monitored ?? '—';
+      if (d.last_updated) {
+        document.getElementById('lastUpdated').textContent =
+          (isArabic ? 'آخر تحديث: ' : 'Last updated: ') + fmtTime(d.last_updated);
+      }
+    } catch (e) {
+      console.error('Stats fetch failed', e);
+    }
+  }
+
+  async function fetchEvents() {
+    try {
+      const r = await fetch('/api/events');
+      const events = await r.json();
+      const tbody = document.getElementById('eventsBody');
+
+      if (!events.length) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="5">${isArabic ? 'لا توجد أحداث' : 'No events found'}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = events.map(ev => {
+        const scans = ev.scans || [];
+        if (!scans.length) {
+          return `<tr>
+            <td>${fmtTime(ev.timestamp)}</td>
+            <td>—</td><td>—</td><td>—</td>
+            <td>${statusBadge(ev.suspicious)}</td>
+          </tr>`;
+        }
+        return scans.map((s, i) => `<tr>
+          <td>${i === 0 ? fmtTime(ev.timestamp) : ''}</td>
+          <td>${s.interface || '—'}</td>
+          <td>${s.network   || '—'}</td>
+          <td>${Array.isArray(s.devices) ? s.devices.length : '—'}</td>
+          <td>${i === 0 ? statusBadge(ev.suspicious) : ''}</td>
+        </tr>`).join('');
+      }).join('');
+    } catch (e) {
+      console.error('Events fetch failed', e);
+    }
+  }
+
+  async function refresh() {
+    await Promise.all([fetchStats(), fetchEvents()]);
+  }
+
+  refresh();
+  setInterval(refresh, 10000);
+</script>
+</body>
+</html>
