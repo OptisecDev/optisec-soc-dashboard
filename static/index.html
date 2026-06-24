@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Optisec SOC Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #0a0a0a;
@@ -15,6 +16,7 @@
       --green-dark: #003d10;
       --red: #ff3333;
       --yellow: #ffcc00;
+      --blue: #00aaff;
       --text: #d0ffd0;
       --text-dim: #7aad7a;
       --text-muted: #3a6b3a;
@@ -39,237 +41,188 @@
       background: var(--surface);
     }
 
-    .logo-wrap {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
+    .logo-wrap { display: flex; align-items: center; gap: 14px; }
 
     .logo-icon {
-      width: 44px;
-      height: 44px;
+      width: 44px; height: 44px;
       border: 2px solid var(--green);
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; color: var(--green);
       text-shadow: 0 0 10px var(--green);
       box-shadow: 0 0 12px #00ff4133;
     }
 
-    .logo-text h1 {
-      font-size: 1.3rem;
-      color: var(--green);
-      text-shadow: 0 0 8px var(--green);
-      letter-spacing: 2px;
-    }
+    .logo-text h1 { font-size: 1.3rem; color: var(--green); text-shadow: 0 0 8px var(--green); letter-spacing: 2px; }
+    .logo-text p  { font-size: 0.65rem; color: var(--text-dim); letter-spacing: 1px; }
 
-    .logo-text p {
-      font-size: 0.65rem;
-      color: var(--text-dim);
-      letter-spacing: 1px;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+    .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
     .live-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.7rem;
-      color: var(--green-dim);
-      letter-spacing: 1px;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.7rem; color: var(--green-dim); letter-spacing: 1px;
     }
 
     .live-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px var(--green);
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 6px var(--green);
       animation: pulse 1.5s infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .btn {
+      border-radius: 4px; cursor: pointer;
+      font-family: inherit; font-size: 0.75rem;
+      letter-spacing: 1px; transition: background .2s, box-shadow .2s;
+      padding: 6px 14px; border: 1px solid;
     }
 
-    .lang-btn {
-      background: var(--green-dark);
-      border: 1px solid var(--green-dim);
-      color: var(--green);
-      padding: 6px 14px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 0.75rem;
-      letter-spacing: 1px;
-      transition: background 0.2s, box-shadow 0.2s;
+    .btn-ghost {
+      background: var(--green-dark); border-color: var(--green-dim); color: var(--green);
     }
+    .btn-ghost:hover { background: #004d18; box-shadow: 0 0 8px #00ff4155; }
 
-    .lang-btn:hover {
-      background: #004d18;
-      box-shadow: 0 0 8px #00ff4155;
+    .btn-pdf {
+      background: #1a0a00; border-color: #cc6600; color: #ff8800;
     }
+    .btn-pdf:hover { background: #2a1200; box-shadow: 0 0 8px #ff880055; }
 
-    /* ── Stats cards ── */
+    /* ── Stats ── */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      padding: 24px 28px 0;
+      gap: 16px; padding: 24px 28px 0;
     }
 
     .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px 22px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.3s;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 20px 22px;
+      position: relative; overflow: hidden;
     }
-
     .stat-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 3px; height: 100%;
-      background: var(--accent, var(--green));
+      content: ''; position: absolute; top:0; left:0;
+      width: 3px; height: 100%; background: var(--accent, var(--green));
+    }
+    .stat-card.threat  { --accent: var(--red); }
+    .stat-card.network { --accent: var(--blue); }
+
+    .stat-label { font-size:.65rem; color:var(--text-muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+    .stat-value { font-size:2.4rem; font-weight:bold; color:var(--accent,var(--green)); text-shadow:0 0 12px var(--accent,var(--green)); line-height:1; }
+    .stat-sub   { font-size:.6rem; color:var(--text-dim); margin-top:6px; }
+
+    /* ── Charts ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      padding: 20px 28px 0;
     }
 
-    .stat-card.threat { --accent: var(--red); }
-    .stat-card.network { --accent: #00aaff; }
+    @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
 
-    .stat-label {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px 20px;
     }
 
-    .stat-label[data-ar] { display: none; }
-
-    .stat-value {
-      font-size: 2.4rem;
-      font-weight: bold;
-      color: var(--accent, var(--green));
-      text-shadow: 0 0 12px var(--accent, var(--green));
-      line-height: 1;
-    }
-
-    .stat-sub {
-      font-size: 0.6rem;
-      color: var(--text-dim);
-      margin-top: 6px;
-    }
-
-    /* ── Events table ── */
-    .section {
-      padding: 24px 28px;
-    }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .chart-title {
+      font-size: .65rem; color: var(--green-dim);
+      letter-spacing: 2px; text-transform: uppercase;
       margin-bottom: 14px;
     }
 
-    .section-title {
-      font-size: 0.75rem;
-      color: var(--green-dim);
-      letter-spacing: 2px;
-      text-transform: uppercase;
+    .chart-wrap { position: relative; }
+    .chart-wrap canvas { max-height: 220px; }
+
+    /* ── Events table ── */
+    .section { padding: 20px 28px; }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
     }
 
-    .refresh-info {
-      font-size: 0.6rem;
-      color: var(--text-muted);
-    }
+    .section-title { font-size:.75rem; color:var(--green-dim); letter-spacing:2px; text-transform:uppercase; }
+    .refresh-info  { font-size:.6rem; color:var(--text-muted); }
 
     .table-wrap {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: auto;
-      max-height: 480px;
-      background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px;
+      overflow: auto; max-height: 400px; background: var(--surface);
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.75rem;
-    }
+    table { width:100%; border-collapse:collapse; font-size:.75rem; }
 
     thead th {
-      background: var(--surface2);
-      color: var(--green-dim);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 10px 14px;
-      text-align: left;
+      background: var(--surface2); color: var(--green-dim);
+      text-transform: uppercase; letter-spacing: 1px;
+      padding: 10px 14px; text-align: left;
       border-bottom: 1px solid var(--border);
-      position: sticky; top: 0;
-      white-space: nowrap;
+      position: sticky; top: 0; white-space: nowrap;
     }
 
-    tbody tr {
-      border-bottom: 1px solid #0e200e;
-      transition: background 0.15s;
-    }
-
+    tbody tr { border-bottom: 1px solid #0e200e; transition: background .15s; }
     tbody tr:hover { background: #0d1a0d; }
+    tbody td { padding: 9px 14px; color: var(--text-dim); white-space: nowrap; }
 
-    tbody td {
-      padding: 9px 14px;
-      color: var(--text-dim);
-      white-space: nowrap;
-    }
+    .badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:.65rem; font-weight:bold; letter-spacing:1px; }
+    .badge-ok   { background:#003d10; color:var(--green);  border:1px solid #005a18; }
+    .badge-warn { background:#3d2a00; color:var(--yellow); border:1px solid #5a3d00; }
+    .badge-crit { background:#3d0000; color:var(--red);    border:1px solid #5a0000; }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 3px;
-      font-size: 0.65rem;
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
-
-    .badge-ok   { background: #003d10; color: var(--green); border: 1px solid #005a18; }
-    .badge-warn { background: #3d2a00; color: var(--yellow); border: 1px solid #5a3d00; }
-    .badge-crit { background: #3d0000; color: var(--red);    border: 1px solid #5a0000; }
-
-    .empty-row td {
-      text-align: center;
-      color: var(--text-muted);
-      padding: 40px;
-    }
+    .empty-row td { text-align:center; color:var(--text-muted); padding:40px; }
 
     /* ── Footer ── */
     footer {
-      text-align: center;
-      padding: 16px;
-      font-size: 0.6rem;
-      color: var(--text-muted);
-      border-top: 1px solid var(--border);
-      margin-top: 8px;
+      text-align:center; padding:16px;
+      font-size:.6rem; color:var(--text-muted);
+      border-top: 1px solid var(--border); margin-top:8px;
     }
 
-    /* ── Arabic RTL overrides ── */
+    /* ── RTL ── */
     body.ar { direction: rtl; }
     body.ar header { flex-direction: row-reverse; }
-    body.ar .stat-card::before { left: auto; right: 0; }
+    body.ar .stat-card::before { left:auto; right:0; }
     body.ar table { direction: rtl; }
     body.ar thead th, body.ar tbody td { text-align: right; }
+
+    /* ── Print / PDF ── */
+    @media print {
+      body { background:#fff; color:#000; font-size:11pt; }
+      header { background:#fff; border-bottom:2px solid #000; }
+      .logo-text h1 { color:#000; text-shadow:none; }
+      .logo-text p  { color:#555; }
+      .logo-icon    { border-color:#000; color:#000; text-shadow:none; box-shadow:none; }
+      .live-dot     { animation:none; background:#00aa00; box-shadow:none; }
+      .btn-pdf, .btn-ghost, .live-badge { display:none !important; }
+      .stats-grid   { grid-template-columns: repeat(3,1fr); }
+      .stat-card    { border:1px solid #ccc; background:#f9f9f9; }
+      .stat-card::before { background:#333; }
+      .stat-value   { color:#000; text-shadow:none; }
+      .stat-label, .stat-sub { color:#555; }
+      .charts-grid  { grid-template-columns: 2fr 1fr; page-break-inside:avoid; }
+      .chart-card   { border:1px solid #ccc; background:#fff; }
+      .chart-title  { color:#333; }
+      .table-wrap   { max-height:none; border:1px solid #ccc; }
+      thead th      { background:#eee; color:#333; border-bottom:1px solid #ccc; }
+      tbody td      { color:#333; }
+      tbody tr      { border-bottom:1px solid #eee; }
+      .badge-ok     { background:#d4edda; color:#155724; border-color:#c3e6cb; }
+      .badge-crit   { background:#f8d7da; color:#721c24; border-color:#f5c6cb; }
+      footer        { color:#555; border-top:1px solid #ccc; }
+      .section-title, .refresh-info { color:#333; }
+      .print-header { display:block !important; }
+    }
+
+    .print-header {
+      display: none;
+      text-align: center;
+      padding: 8px 0 16px;
+      font-size: 0.8rem;
+      color: #555;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -287,26 +240,43 @@
       <div class="live-dot"></div>
       <span data-en="LIVE MONITORING" data-ar="مراقبة مباشرة">LIVE MONITORING</span>
     </div>
-    <button class="lang-btn" id="langToggle" onclick="toggleLang()">العربية</button>
+    <button class="btn btn-pdf" onclick="exportPDF()" data-en="Export PDF" data-ar="تصدير PDF">Export PDF</button>
+    <button class="btn btn-ghost" id="langToggle" onclick="toggleLang()">العربية</button>
   </div>
 </header>
+
+<div class="print-header" id="printHeader">
+  Optisec SOC Report &mdash; Generated: <span id="printDate"></span>
+</div>
 
 <!-- Stats -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-label" data-en="TOTAL EVENTS" data-ar="إجمالي الأحداث">TOTAL EVENTS</div>
     <div class="stat-value" id="totalEvents">—</div>
-    <div class="stat-sub" data-en="Recorded log entries" data-ar="سجلات مسجلة">Recorded log entries</div>
+    <div class="stat-sub"  data-en="Recorded log entries" data-ar="سجلات مسجلة">Recorded log entries</div>
   </div>
   <div class="stat-card threat">
     <div class="stat-label" data-en="THREATS DETECTED" data-ar="التهديدات المكتشفة">THREATS DETECTED</div>
     <div class="stat-value" id="threatsDetected">—</div>
-    <div class="stat-sub" data-en="Suspicious activities" data-ar="الأنشطة المشبوهة">Suspicious activities</div>
+    <div class="stat-sub"  data-en="Suspicious activities" data-ar="الأنشطة المشبوهة">Suspicious activities</div>
   </div>
   <div class="stat-card network">
     <div class="stat-label" data-en="NETWORKS MONITORED" data-ar="الشبكات المراقبة">NETWORKS MONITORED</div>
     <div class="stat-value" id="networksMonitored">—</div>
-    <div class="stat-sub" data-en="Active network segments" data-ar="شرائح الشبكة النشطة">Active network segments</div>
+    <div class="stat-sub"  data-en="Active network segments" data-ar="شرائح الشبكة النشطة">Active network segments</div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title" data-en="EVENTS OVER TIME" data-ar="الأحداث عبر الزمن">EVENTS OVER TIME</div>
+    <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title" data-en="THREAT ANALYSIS" data-ar="تحليل التهديدات">THREAT ANALYSIS</div>
+    <div class="chart-wrap"><canvas id="doughnutChart"></canvas></div>
   </div>
 </div>
 
@@ -320,11 +290,11 @@
     <table>
       <thead>
         <tr>
-          <th data-en="TIMESTAMP" data-ar="الوقت">TIMESTAMP</th>
-          <th data-en="INTERFACE" data-ar="الواجهة">INTERFACE</th>
-          <th data-en="NETWORK" data-ar="الشبكة">NETWORK</th>
-          <th data-en="DEVICES" data-ar="الأجهزة">DEVICES</th>
-          <th data-en="STATUS" data-ar="الحالة">STATUS</th>
+          <th data-en="TIMESTAMP"  data-ar="الوقت">TIMESTAMP</th>
+          <th data-en="INTERFACE"  data-ar="الواجهة">INTERFACE</th>
+          <th data-en="NETWORK"    data-ar="الشبكة">NETWORK</th>
+          <th data-en="DEVICES"    data-ar="الأجهزة">DEVICES</th>
+          <th data-en="STATUS"     data-ar="الحالة">STATUS</th>
         </tr>
       </thead>
       <tbody id="eventsBody">
@@ -335,66 +305,188 @@
 </div>
 
 <footer>
-  &copy; 2026 Optisec &mdash; <span data-en="All rights reserved" data-ar="جميع الحقوق محفوظة">All rights reserved</span>
-  &nbsp;|&nbsp; <span id="lastUpdated"></span>
+  &copy; 2026 Optisec &mdash;
+  <span data-en="All rights reserved" data-ar="جميع الحقوق محفوظة">All rights reserved</span>
+  &nbsp;|&nbsp;<span id="lastUpdated"></span>
 </footer>
 
 <script>
   let isArabic = false;
+  let lineChart = null;
+  let doughnutChart = null;
 
+  // ── Language toggle ──────────────────────────────────────────────────────
   function toggleLang() {
     isArabic = !isArabic;
-    const body = document.body;
-    const btn  = document.getElementById('langToggle');
-
-    if (isArabic) {
-      body.classList.add('ar');
-      btn.textContent = 'English';
-      document.documentElement.lang = 'ar';
-      document.documentElement.dir  = 'rtl';
-    } else {
-      body.classList.remove('ar');
-      btn.textContent = 'العربية';
-      document.documentElement.lang = 'en';
-      document.documentElement.dir  = 'ltr';
-    }
-
+    document.body.classList.toggle('ar', isArabic);
+    document.getElementById('langToggle').textContent = isArabic ? 'English' : 'العربية';
+    document.documentElement.lang = isArabic ? 'ar' : 'en';
+    document.documentElement.dir  = isArabic ? 'rtl' : 'ltr';
     document.querySelectorAll('[data-en]').forEach(el => {
       el.textContent = isArabic ? el.dataset.ar : el.dataset.en;
     });
+    updateChartLabels();
   }
 
+  // ── Helpers ──────────────────────────────────────────────────────────────
   function fmtTime(iso) {
     try {
       return new Date(iso).toLocaleString('en-GB', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false
+        month:'2-digit', day:'2-digit',
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
       });
     } catch { return iso; }
   }
 
   function statusBadge(suspicious) {
-    if (suspicious && suspicious.length > 0) {
+    if (suspicious && suspicious.length > 0)
       return `<span class="badge badge-crit">${isArabic ? 'تهديد' : 'THREAT'}</span>`;
-    }
     return `<span class="badge badge-ok">${isArabic ? 'آمن' : 'CLEAN'}</span>`;
   }
 
+  // ── Charts ───────────────────────────────────────────────────────────────
+  const CHART_DEFAULTS = {
+    color: '#7aad7a',
+    borderColor: '#1a3a1a',
+    plugins: { legend: { labels: { color: '#7aad7a', font: { family: 'Courier New', size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#3a6b3a', font: { family: 'Courier New', size: 10 } }, grid: { color: '#0e200e' } },
+      y: { ticks: { color: '#3a6b3a', font: { family: 'Courier New', size: 10 } }, grid: { color: '#0e200e' }, beginAtZero: true }
+    }
+  };
+
+  function buildLineChart(events) {
+    // Take last 15 events (oldest first for timeline)
+    const slice = [...events].reverse().slice(-15);
+    const labels = slice.map(e => fmtTime(e.timestamp));
+    const deviceData = slice.map(e =>
+      (e.scans || []).reduce((s, sc) => s + (sc.devices?.length || 0), 0)
+    );
+    const threatData = slice.map(e => (e.suspicious?.length || 0) > 0 ? 1 : 0);
+
+    const labelEn = 'Devices Found';
+    const labelAr = 'الأجهزة المكتشفة';
+    const threatLabelEn = 'Threats';
+    const threatLabelAr = 'تهديدات';
+
+    if (lineChart) {
+      lineChart.data.labels = labels;
+      lineChart.data.datasets[0].data = deviceData;
+      lineChart.data.datasets[1].data = threatData;
+      lineChart.update('none');
+      return;
+    }
+
+    const ctx = document.getElementById('lineChart').getContext('2d');
+    lineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: isArabic ? labelAr : labelEn,
+            data: deviceData,
+            borderColor: '#00ff41',
+            backgroundColor: '#00ff4118',
+            tension: 0.3,
+            pointBackgroundColor: '#00ff41',
+            pointRadius: 3,
+            fill: true,
+          },
+          {
+            label: isArabic ? threatLabelAr : threatLabelEn,
+            data: threatData,
+            borderColor: '#ff3333',
+            backgroundColor: '#ff333318',
+            tension: 0.3,
+            pointBackgroundColor: '#ff3333',
+            pointRadius: 3,
+            fill: true,
+            yAxisID: 'y2',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#7aad7a', font: { family: 'Courier New', size: 11 } } }
+        },
+        scales: {
+          x: { ticks: { color: '#3a6b3a', font: { family: 'Courier New', size: 10 }, maxTicksLimit: 8 }, grid: { color: '#0e200e' } },
+          y: { ticks: { color: '#3a6b3a', font: { family: 'Courier New', size: 10 }, precision: 0 }, grid: { color: '#0e200e' }, beginAtZero: true, title: { display: false } },
+          y2: { position: 'right', ticks: { color: '#ff3333', font: { family: 'Courier New', size: 10 }, precision: 0 }, grid: { display: false }, beginAtZero: true, max: 3 }
+        }
+      }
+    });
+  }
+
+  function buildDoughnutChart(stats) {
+    const threats = stats.threats_detected || 0;
+    const clean   = Math.max(0, (stats.total_events || 0) - threats);
+
+    const labelsEn = ['Threats', 'Clean'];
+    const labelsAr = ['تهديدات', 'آمن'];
+
+    if (doughnutChart) {
+      doughnutChart.data.datasets[0].data = [threats, clean];
+      doughnutChart.update('none');
+      return;
+    }
+
+    const ctx = document.getElementById('doughnutChart').getContext('2d');
+    doughnutChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: isArabic ? labelsAr : labelsEn,
+        datasets: [{
+          data: [threats, clean],
+          backgroundColor: ['#ff333388', '#00ff4188'],
+          borderColor:     ['#ff3333', '#00ff41'],
+          borderWidth: 2,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#7aad7a', font: { family: 'Courier New', size: 11 }, padding: 12 } }
+        },
+        cutout: '65%',
+      }
+    });
+  }
+
+  function updateChartLabels() {
+    if (lineChart) {
+      lineChart.data.datasets[0].label = isArabic ? 'الأجهزة المكتشفة' : 'Devices Found';
+      lineChart.data.datasets[1].label = isArabic ? 'تهديدات' : 'Threats';
+      lineChart.update('none');
+    }
+    if (doughnutChart) {
+      doughnutChart.data.labels = isArabic ? ['تهديدات', 'آمن'] : ['Threats', 'Clean'];
+      doughnutChart.update('none');
+    }
+    // Re-render badge text in table
+    document.querySelectorAll('.badge-ok').forEach(b   => b.textContent = isArabic ? 'آمن'   : 'CLEAN');
+    document.querySelectorAll('.badge-crit').forEach(b => b.textContent = isArabic ? 'تهديد' : 'THREAT');
+  }
+
+  // ── Data fetching ────────────────────────────────────────────────────────
   async function fetchStats() {
     try {
       const r = await fetch('/api/stats');
       const d = await r.json();
-      document.getElementById('totalEvents').textContent     = d.total_events ?? '—';
-      document.getElementById('threatsDetected').textContent = d.threats_detected ?? '—';
+      document.getElementById('totalEvents').textContent      = d.total_events       ?? '—';
+      document.getElementById('threatsDetected').textContent  = d.threats_detected   ?? '—';
       document.getElementById('networksMonitored').textContent = d.networks_monitored ?? '—';
-      if (d.last_updated) {
+      if (d.last_updated)
         document.getElementById('lastUpdated').textContent =
           (isArabic ? 'آخر تحديث: ' : 'Last updated: ') + fmtTime(d.last_updated);
-      }
-    } catch (e) {
-      console.error('Stats fetch failed', e);
-    }
+      buildDoughnutChart(d);
+    } catch(e) { console.error('Stats fetch failed', e); }
   }
 
   async function fetchEvents() {
@@ -410,13 +502,8 @@
 
       tbody.innerHTML = events.map(ev => {
         const scans = ev.scans || [];
-        if (!scans.length) {
-          return `<tr>
-            <td>${fmtTime(ev.timestamp)}</td>
-            <td>—</td><td>—</td><td>—</td>
-            <td>${statusBadge(ev.suspicious)}</td>
-          </tr>`;
-        }
+        if (!scans.length)
+          return `<tr><td>${fmtTime(ev.timestamp)}</td><td>—</td><td>—</td><td>—</td><td>${statusBadge(ev.suspicious)}</td></tr>`;
         return scans.map((s, i) => `<tr>
           <td>${i === 0 ? fmtTime(ev.timestamp) : ''}</td>
           <td>${s.interface || '—'}</td>
@@ -425,11 +512,18 @@
           <td>${i === 0 ? statusBadge(ev.suspicious) : ''}</td>
         </tr>`).join('');
       }).join('');
-    } catch (e) {
-      console.error('Events fetch failed', e);
-    }
+
+      buildLineChart(events);
+    } catch(e) { console.error('Events fetch failed', e); }
   }
 
+  // ── PDF export ───────────────────────────────────────────────────────────
+  function exportPDF() {
+    document.getElementById('printDate').textContent = new Date().toLocaleString();
+    window.print();
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
   async function refresh() {
     await Promise.all([fetchStats(), fetchEvents()]);
   }
