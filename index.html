@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optisec SOC Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --surface2: #161616;
+      --border: #1a3a1a; --green: #00ff41; --green-dim: #00c832;
+      --green-dark: #003d10; --red: #ff3333; --yellow: #ffcc00;
+      --blue: #00aaff; --text: #d0ffd0; --text-dim: #7aad7a; --text-muted: #3a6b3a;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'Courier New',Courier,monospace; min-height:100vh; }
+
+    header { display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--border); background:var(--surface); }
+    .logo-wrap { display:flex; align-items:center; gap:14px; }
+    .logo-icon { width:44px; height:44px; border:2px solid var(--green); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--green); text-shadow:0 0 10px var(--green); box-shadow:0 0 12px #00ff4133; }
+    .logo-text h1 { font-size:1.3rem; color:var(--green); text-shadow:0 0 8px var(--green); letter-spacing:2px; }
+    .logo-text p  { font-size:0.65rem; color:var(--text-dim); letter-spacing:1px; }
+    .header-right { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .live-badge { display:flex; align-items:center; gap:6px; font-size:0.7rem; color:var(--green-dim); letter-spacing:1px; }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:var(--yellow); box-shadow:0 0 6px var(--yellow); }
+    .demo-badge { background:#1a1400; border:1px solid var(--yellow); color:var(--yellow); padding:4px 10px; border-radius:4px; font-size:0.65rem; letter-spacing:1px; }
+    .btn { border-radius:4px; cursor:pointer; font-family:inherit; font-size:0.75rem; letter-spacing:1px; transition:background .2s,box-shadow .2s; padding:6px 14px; border:1px solid; }
+    .btn-ghost { background:var(--green-dark); border-color:var(--green-dim); color:var(--green); }
+    .btn-ghost:hover { background:#004d18; box-shadow:0 0 8px #00ff4155; }
+    .btn-pdf { background:#1a0a00; border-color:#cc6600; color:#ff8800; }
+    .btn-pdf:hover { background:#2a1200; box-shadow:0 0 8px #ff880055; }
+
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; padding:24px 28px 0; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px 22px; position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:var(--accent,var(--green)); }
+    .stat-card.threat  { --accent:var(--red); }
+    .stat-card.network { --accent:var(--blue); }
+    .stat-label { font-size:.65rem; color:var(--text-muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+    .stat-value { font-size:2.4rem; font-weight:bold; color:var(--accent,var(--green)); text-shadow:0 0 12px var(--accent,var(--green)); line-height:1; }
+    .stat-sub   { font-size:.6rem; color:var(--text-dim); margin-top:6px; }
+
+    .charts-grid { display:grid; grid-template-columns:2fr 1fr; gap:16px; padding:20px 28px 0; }
+    @media(max-width:700px){.charts-grid{grid-template-columns:1fr;}}
+    .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px 20px; }
+    .chart-title { font-size:.65rem; color:var(--green-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:14px; }
+    .chart-wrap canvas { max-height:220px; }
+
+    .section { padding:20px 28px; }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .section-title { font-size:.75rem; color:var(--green-dim); letter-spacing:2px; text-transform:uppercase; }
+    .refresh-info  { font-size:.6rem; color:var(--text-muted); }
+    .table-wrap { border:1px solid var(--border); border-radius:8px; overflow:auto; max-height:400px; background:var(--surface); }
+    table { width:100%; border-collapse:collapse; font-size:.75rem; }
+    thead th { background:var(--surface2); color:var(--green-dim); text-transform:uppercase; letter-spacing:1px; padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); position:sticky; top:0; white-space:nowrap; }
+    tbody tr { border-bottom:1px solid #0e200e; transition:background .15s; }
+    tbody tr:hover { background:#0d1a0d; }
+    tbody td { padding:9px 14px; color:var(--text-dim); white-space:nowrap; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:.65rem; font-weight:bold; letter-spacing:1px; }
+    .badge-ok   { background:#003d10; color:var(--green);  border:1px solid #005a18; }
+    .badge-crit { background:#3d0000; color:var(--red);    border:1px solid #5a0000; }
+
+    footer { text-align:center; padding:16px; font-size:.6rem; color:var(--text-muted); border-top:1px solid var(--border); margin-top:8px; }
+
+    body.ar { direction:rtl; }
+    body.ar header { flex-direction:row-reverse; }
+    body.ar .stat-card::before { left:auto; right:0; }
+    body.ar table { direction:rtl; }
+    body.ar thead th, body.ar tbody td { text-align:right; }
+
+    @media print {
+      body { background:#fff; color:#000; font-size:11pt; }
+      header { background:#fff; border-bottom:2px solid #000; }
+      .logo-text h1 { color:#000; text-shadow:none; }
+      .logo-text p  { color:#555; }
+      .logo-icon    { border-color:#000; color:#000; text-shadow:none; box-shadow:none; }
+      .live-dot,.demo-badge,.btn-pdf,.btn-ghost,.live-badge { display:none !important; }
+      .stats-grid   { grid-template-columns:repeat(3,1fr); }
+      .stat-card    { border:1px solid #ccc; background:#f9f9f9; }
+      .stat-card::before { background:#333; }
+      .stat-value   { color:#000; text-shadow:none; }
+      .stat-label,.stat-sub { color:#555; }
+      .charts-grid  { grid-template-columns:2fr 1fr; page-break-inside:avoid; }
+      .chart-card   { border:1px solid #ccc; background:#fff; }
+      .chart-title  { color:#333; }
+      .table-wrap   { max-height:none; border:1px solid #ccc; }
+      thead th      { background:#eee; color:#333; border-bottom:1px solid #ccc; }
+      tbody td      { color:#333; }
+      tbody tr      { border-bottom:1px solid #eee; }
+      .badge-ok     { background:#d4edda; color:#155724; border-color:#c3e6cb; }
+      .badge-crit   { background:#f8d7da; color:#721c24; border-color:#f5c6cb; }
+      footer        { color:#555; border-top:1px solid #ccc; }
+      .section-title,.refresh-info { color:#333; }
+      .print-header { display:block !important; }
+    }
+    .print-header { display:none; text-align:center; padding:8px 0 16px; font-size:0.8rem; color:#555; border-bottom:1px solid #ccc; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div class="logo-icon">&#x1F6E1;</div>
+    <div class="logo-text">
+      <h1>OPTISEC</h1>
+      <p data-en="SECURITY OPERATIONS CENTER" data-ar="مركز عمليات الأمن">SECURITY OPERATIONS CENTER</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      <span data-en="DEMO MODE" data-ar="وضع العرض">DEMO MODE</span>
+    </div>
+    <span class="demo-badge" data-en="DEMO DATA" data-ar="بيانات تجريبية">DEMO DATA</span>
+    <button class="btn btn-pdf" onclick="exportPDF()" data-en="Export PDF" data-ar="تصدير PDF">Export PDF</button>
+    <button class="btn btn-ghost" id="langToggle" onclick="toggleLang()">العربية</button>
+  </div>
+</header>
+
+<div class="print-header">Optisec SOC Report &mdash; Generated: <span id="printDate"></span></div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label" data-en="TOTAL EVENTS" data-ar="إجمالي الأحداث">TOTAL EVENTS</div>
+    <div class="stat-value" id="totalEvents">—</div>
+    <div class="stat-sub"  data-en="Recorded log entries" data-ar="سجلات مسجلة">Recorded log entries</div>
+  </div>
+  <div class="stat-card threat">
+    <div class="stat-label" data-en="THREATS DETECTED" data-ar="التهديدات المكتشفة">THREATS DETECTED</div>
+    <div class="stat-value" id="threatsDetected">—</div>
+    <div class="stat-sub"  data-en="Suspicious activities" data-ar="الأنشطة المشبوهة">Suspicious activities</div>
+  </div>
+  <div class="stat-card network">
+    <div class="stat-label" data-en="NETWORKS MONITORED" data-ar="الشبكات المراقبة">NETWORKS MONITORED</div>
+    <div class="stat-value" id="networksMonitored">—</div>
+    <div class="stat-sub"  data-en="Active network segments" data-ar="شرائح الشبكة النشطة">Active network segments</div>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title" data-en="EVENTS OVER TIME" data-ar="الأحداث عبر الزمن">EVENTS OVER TIME</div>
+    <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title" data-en="THREAT ANALYSIS" data-ar="تحليل التهديدات">THREAT ANALYSIS</div>
+    <div class="chart-wrap"><canvas id="doughnutChart"></canvas></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <span class="section-title" data-en="RECENT EVENTS" data-ar="الأحداث الأخيرة">RECENT EVENTS</span>
+    <span class="refresh-info" data-en="Demo data — 48 scan cycles" data-ar="بيانات تجريبية — 48 دورة فحص">Demo data — 48 scan cycles</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-en="TIMESTAMP" data-ar="الوقت">TIMESTAMP</th>
+          <th data-en="INTERFACE" data-ar="الواجهة">INTERFACE</th>
+          <th data-en="NETWORK"   data-ar="الشبكة">NETWORK</th>
+          <th data-en="DEVICES"   data-ar="الأجهزة">DEVICES</th>
+          <th data-en="STATUS"    data-ar="الحالة">STATUS</th>
+        </tr>
+      </thead>
+      <tbody id="eventsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  &copy; 2026 Optisec &mdash;
+  <span data-en="All rights reserved" data-ar="جميع الحقوق محفوظة">All rights reserved</span>
+  &nbsp;|&nbsp;
+  <span data-en="optisec-soc-platform.com" data-ar="optisec-soc-platform.com">optisec-soc-platform.com</span>
+</footer>
+
+<script>
+  // ── Demo data generator ──────────────────────────────────────────────────
+  function generateDemoEvents() {
+    const now = Date.now();
+    const events = [];
+    const interfaces = ['eth0', 'wlan0'];
+    const networks   = ['192.168.1.0/24', '10.0.0.0/24'];
+    const macs = [
+      'ec:75:0c:95:a6:02','a4:c3:f0:85:1b:2e','b8:27:eb:12:34:56',
+      'dc:a6:32:ab:cd:ef','00:11:22:33:44:55','f8:1a:67:88:99:00',
+    ];
+    const hostnames = ['_gateway','desktop-pc','laptop-01','raspi-node','printer','nas-server'];
+
+    const threatEvents = new Set([3, 8, 14, 21, 35, 42]);
+
+    for (let i = 47; i >= 0; i--) {
+      const ts = new Date(now - i * 30 * 60 * 1000).toISOString();
+      const isThreat = threatEvents.has(i);
+      const ifaceIdx = i % 2;
+      const devCount = isThreat ? 2 + Math.floor(Math.random()*3) : 1 + Math.floor(Math.random()*2);
+
+      const devices = Array.from({ length: devCount }, (_, d) => ({
+        ip: `${networks[ifaceIdx].split('/')[0].replace('.0','')}.${10 + d}`,
+        mac: macs[(i + d) % macs.length],
+        hostname: hostnames[(i + d) % hostnames.length],
+      }));
+
+      const suspicious = isThreat
+        ? i % 7 === 0
+          ? [{ type:'port_scan', pid: 1000+i, process:'nmap', syn_count: 25+i, severity:'high' }]
+          : [{ type:'unknown_device', device: devices[devices.length-1], severity:'medium' }]
+        : [];
+
+      events.push({
+        timestamp: ts,
+        scans: [{ interface: interfaces[ifaceIdx], network: networks[ifaceIdx], devices }],
+        suspicious,
+      });
+    }
+    return events.reverse(); // newest first
+  }
+
+  const DEMO_EVENTS = generateDemoEvents();
+  const DEMO_STATS = {
+    total_events: DEMO_EVENTS.length,
+    threats_detected: DEMO_EVENTS.filter(e => e.suspicious.length > 0).length,
+    networks_monitored: 2,
+    last_updated: DEMO_EVENTS[0].timestamp,
+  };
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let isArabic = false;
+  let lineChart = null;
+  let doughnutChart = null;
+
+  // ── Language ─────────────────────────────────────────────────────────────
+  function toggleLang() {
+    isArabic = !isArabic;
+    document.body.classList.toggle('ar', isArabic);
+    document.getElementById('langToggle').textContent = isArabic ? 'English' : 'العربية';
+    document.documentElement.lang = isArabic ? 'ar' : 'en';
+    document.documentElement.dir  = isArabic ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-en]').forEach(el => {
+      el.textContent = isArabic ? el.dataset.ar : el.dataset.en;
+    });
+    updateChartLabels();
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function fmtTime(iso) {
+    try {
+      return new Date(iso).toLocaleString('en-GB', {
+        month:'2-digit', day:'2-digit',
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+      });
+    } catch { return iso; }
+  }
+
+  function statusBadge(suspicious) {
+    if (suspicious && suspicious.length > 0)
+      return `<span class="badge badge-crit">${isArabic ? 'تهديد' : 'THREAT'}</span>`;
+    return `<span class="badge badge-ok">${isArabic ? 'آمن' : 'CLEAN'}</span>`;
+  }
+
+  // ── Charts ───────────────────────────────────────────────────────────────
+  function buildLineChart(events) {
+    const slice = [...events].reverse().slice(-15);
+    const labels     = slice.map(e => fmtTime(e.timestamp));
+    const deviceData = slice.map(e => (e.scans||[]).reduce((s,sc)=>s+(sc.devices?.length||0),0));
+    const threatData = slice.map(e => (e.suspicious?.length||0) > 0 ? 1 : 0);
+
+    const ctx = document.getElementById('lineChart').getContext('2d');
+    lineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: isArabic ? 'الأجهزة المكتشفة' : 'Devices Found',
+            data: deviceData,
+            borderColor:'#00ff41', backgroundColor:'#00ff4118',
+            tension:0.3, pointBackgroundColor:'#00ff41', pointRadius:3, fill:true,
+          },
+          {
+            label: isArabic ? 'تهديدات' : 'Threats',
+            data: threatData,
+            borderColor:'#ff3333', backgroundColor:'#ff333318',
+            tension:0.3, pointBackgroundColor:'#ff3333', pointRadius:3, fill:true, yAxisID:'y2',
+          }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:true,
+        interaction:{mode:'index',intersect:false},
+        plugins:{ legend:{ labels:{ color:'#7aad7a', font:{family:'Courier New',size:11} } } },
+        scales:{
+          x:{ ticks:{color:'#3a6b3a',font:{family:'Courier New',size:10},maxTicksLimit:8}, grid:{color:'#0e200e'} },
+          y:{ ticks:{color:'#3a6b3a',font:{family:'Courier New',size:10},precision:0}, grid:{color:'#0e200e'}, beginAtZero:true },
+          y2:{ position:'right', ticks:{color:'#ff3333',font:{family:'Courier New',size:10},precision:0}, grid:{display:false}, beginAtZero:true, max:3 },
+        }
+      }
+    });
+  }
+
+  function buildDoughnutChart(stats) {
+    const threats = stats.threats_detected || 0;
+    const clean   = Math.max(0,(stats.total_events||0)-threats);
+    const ctx = document.getElementById('doughnutChart').getContext('2d');
+    doughnutChart = new Chart(ctx, {
+      type:'doughnut',
+      data:{
+        labels: isArabic ? ['تهديدات','آمن'] : ['Threats','Clean'],
+        datasets:[{
+          data:[threats,clean],
+          backgroundColor:['#ff333388','#00ff4188'],
+          borderColor:['#ff3333','#00ff41'],
+          borderWidth:2, hoverOffset:6,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:true, cutout:'65%',
+        plugins:{ legend:{ position:'bottom', labels:{ color:'#7aad7a', font:{family:'Courier New',size:11}, padding:12 } } }
+      }
+    });
+  }
+
+  function updateChartLabels() {
+    if (lineChart) {
+      lineChart.data.datasets[0].label = isArabic ? 'الأجهزة المكتشفة' : 'Devices Found';
+      lineChart.data.datasets[1].label = isArabic ? 'تهديدات' : 'Threats';
+      lineChart.update('none');
+    }
+    if (doughnutChart) {
+      doughnutChart.data.labels = isArabic ? ['تهديدات','آمن'] : ['Threats','Clean'];
+      doughnutChart.update('none');
+    }
+    document.querySelectorAll('.badge-ok').forEach(b   => b.textContent = isArabic ? 'آمن'   : 'CLEAN');
+    document.querySelectorAll('.badge-crit').forEach(b => b.textContent = isArabic ? 'تهديد' : 'THREAT');
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  function render() {
+    const stats  = DEMO_STATS;
+    const events = DEMO_EVENTS;
+
+    document.getElementById('totalEvents').textContent       = stats.total_events;
+    document.getElementById('threatsDetected').textContent   = stats.threats_detected;
+    document.getElementById('networksMonitored').textContent = stats.networks_monitored;
+
+    const tbody = document.getElementById('eventsBody');
+    tbody.innerHTML = events.map(ev => {
+      const scans = ev.scans || [];
+      if (!scans.length)
+        return `<tr><td>${fmtTime(ev.timestamp)}</td><td>—</td><td>—</td><td>—</td><td>${statusBadge(ev.suspicious)}</td></tr>`;
+      return scans.map((s,i) => `<tr>
+        <td>${i===0 ? fmtTime(ev.timestamp) : ''}</td>
+        <td>${s.interface||'—'}</td>
+        <td>${s.network||'—'}</td>
+        <td>${Array.isArray(s.devices)?s.devices.length:'—'}</td>
+        <td>${i===0 ? statusBadge(ev.suspicious) : ''}</td>
+      </tr>`).join('');
+    }).join('');
+
+    buildLineChart(events);
+    buildDoughnutChart(stats);
+  }
+
+  function exportPDF() {
+    document.getElementById('printDate').textContent = new Date().toLocaleString();
+    window.print();
+  }
+
+  render();
+</script>
+</body>
+</html>
