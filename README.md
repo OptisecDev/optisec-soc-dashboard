@@ -67,3 +67,5 @@ Change this if your agent writes logs to a different location.
 ## License
 
 Proprietary — © 2026 Optisec. All rights reserved.
+
+Purchase a license at [optisecdev.github.io/optisec-store](https://optisecdev.github.io/optisec-store) ($99/year) · Contact: [ahssanali84.syber@gmail.com](mailto:ahssanali84.syber@gmail.com)
